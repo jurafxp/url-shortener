@@ -1,10 +1,12 @@
 import logging
-from flask import Flask, json, request, redirect, render_template, make_response
+from flask import Flask, json, request, redirect, render_template, make_response, url_for
+import flask_login
 from .shorten import UrlShortener
 from functools import wraps
 from bernhard import Client
 from riemann_wrapper import riemann_wrapper
 from urllib.parse import urlparse
+from . import config
 
 app = Flask(__name__)
 shrt = UrlShortener()
@@ -23,8 +25,72 @@ except:
 
 wrap_riemann = riemann_wrapper(client=riemann_client, prefix='url-shortener.')
 
+app.secret_key = config.SECRET_KEY
+login_manager = flask_login.LoginManager()
+login_manager.init_app(app)
+
+# Our mock database.
+users = {'test': {'password': 'test'}}
+
+class User(flask_login.UserMixin):
+    pass
+
+@login_manager.user_loader
+def user_loader(email):
+    if email not in users:
+        return
+
+    user = User()
+    user.id = email
+    return user
+
+@login_manager.request_loader
+def request_loader(request):
+    email = request.form.get('email')
+    if email not in users:
+        return
+
+    user = User()
+    user.id = email
+
+    # DO NOT ever store passwords in plaintext and always compare password
+    # hashes using constant-time comparison!
+    user.is_authenticated = request.form['password'] == users[email]['password']
+
+    return user
+
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    return redirect('/login?next=' + request.path)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return '''
+               <form action='login' method='POST'>
+                <input type='text' name='email' id='email' placeholder='email'/>
+                <input type='password' name='password' id='password' placeholder='password'/>
+                <input type='submit' name='submit'/>
+               </form>
+               '''
+
+    email = request.form['email']
+    if request.form['password'] == users[email]['password']:
+        user = User()
+        user.id = email
+        flask_login.login_user(user)
+        return redirect(url_for('index'))
+
+    return 'Bad login'
+
+@app.route('/logout')
+def logout():
+    flask_login.logout_user()
+    return 'Logged out'
+
 ## template pushing routes
 @app.route('/')
+@flask_login.login_required
 @wrap_riemann('home')
 def index():
     return render_template('index.html')
@@ -55,10 +121,11 @@ def lookup(code):
 ## If a Form is posted we reply in HTML
 ## Otherwise we redirect to a failure page
 @app.route('/', methods=['POST'])
+@flask_login.login_required
 @wrap_riemann('creation')
 def shorten_url():
     if request.json and 'url' in request.json:
-        u = urlparse.urlparse(request.json['url'])
+        u = urlparse(request.json['url'])
         if u.netloc == '':
             url = 'http://' + request.json['url']
         else:
@@ -70,7 +137,7 @@ def shorten_url():
         return response
 
     elif request.form and 'url' in request.form:
-        u = urlparse.urlparse(request.form['url'])
+        u = urlparse(request.form['url'])
         if u.netloc == '':
             url = 'http://' + request.form['url']
         else:

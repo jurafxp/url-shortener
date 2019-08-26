@@ -1,0 +1,24 @@
+version: '2'
+
+services:
+
+  db:
+    image: redis:5-alpine
+    restart: always
+
+  shortener:
+    image: urlshortener
+    restart: always
+    build: .
+    ports:
+     - "8000:8000"
+    links:
+      - db
+    environment:
+      - REDIS_HOST=db
+      - URL_PREFIX=http://grexatest.twisto.wtf/
+      - SECRET_KEY=tramtadadadada
+    command: gunicorn --bind 0.0.0.0:8000 --workers 2 url_shortener:app
+    depends_on:
+      - db
+

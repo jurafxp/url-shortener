@@ -6,9 +6,9 @@ import sys
 
 class UrlShortener:
     def __init__(self):
-        self.redis = redis.StrictRedis(host=config.REDIS_HOST,
-                                       port=config.REDIS_PORT,
-                                       db=config.REDIS_DB)
+        self.redis = redis.client.Redis(host=config.REDIS_HOST,
+                                        port=config.REDIS_PORT,
+                                        db=config.REDIS_DB)
         
     def shortcode(self, url):
         """
@@ -28,8 +28,9 @@ class UrlShortener:
         key.
         
         """
-        md5 = hashlib.md5()
-        return base64.b64encode(md5.update(str.encode(url)).digest()[-4:]).replace('=','').replace('/','_')
+        m = hashlib.md5()
+        m.update(url.encode())
+        return base64.b64encode(m.digest()[-4:]).decode().replace('=','').replace('/','_')
 
     def shorten(self, url):
         """
