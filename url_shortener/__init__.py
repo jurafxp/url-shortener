@@ -142,7 +142,11 @@ def shorten_url():
             url = 'http://' + request.form['url']
         else:
             url = request.form['url']
-        res = shrt.shorten(url)
+        if request.form.get('label', None): 
+            label = request.form['label']
+            res = shrt.shorten(url, label=label)
+        else:
+            res = shrt.shorten(url)
         logger.debug("shortened %s to %s" % (url, res))
         return render_template('result.html', result=res)
 

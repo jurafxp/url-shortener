@@ -32,7 +32,7 @@ class UrlShortener:
         m.update(url.encode())
         return base64.b64encode(m.digest()[-4:]).decode().replace('=','').replace('/','_')
 
-    def shorten(self, url):
+    def shorten(self, url, **kwargs):
         """
         The shortening workflow is very minimal. We try to
         set the redis key to the url value. We catch any
@@ -40,7 +40,10 @@ class UrlShortener:
         in the client
         """
 
-        code = self.shortcode(url)
+        if "label" in kwargs:
+            code = kwargs['label']
+        else:
+            code = self.shortcode(url)
         
         try:
             self.redis.set(config.REDIS_PREFIX + code, url)
