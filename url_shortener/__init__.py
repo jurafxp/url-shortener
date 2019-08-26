@@ -1,10 +1,10 @@
 import logging
 from flask import Flask, json, request, redirect, render_template, make_response
-from shorten import UrlShortener
+from .shorten import UrlShortener
 from functools import wraps
 from bernhard import Client
 from riemann_wrapper import riemann_wrapper
-import urlparse
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 shrt = UrlShortener()

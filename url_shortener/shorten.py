@@ -1,7 +1,7 @@
 import redis
 import base64
-import md5
-import config
+import hashlib
+from . import config
 import sys
 
 class UrlShortener:
@@ -28,7 +28,8 @@ class UrlShortener:
         key.
         
         """
-        return base64.b64encode(md5.new(url).digest()[-4:]).replace('=','').replace('/','_')
+        md5 = hashlib.md5()
+        return base64.b64encode(md5.update(str.encode(url)).digest()[-4:]).replace('=','').replace('/','_')
 
     def shorten(self, url):
         """
